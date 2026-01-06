@@ -1,0 +1,84 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LumosMark",
+  "scopeName": "source.lmm",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#block_property"
+    },
+    {
+      "include": "#block_tag"
+    },
+    {
+      "include": "#enhanced_block"
+    },
+    {
+      "include": "#inline_tag"
+    },
+    {
+      "include": "#inline_code"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": "^\\s*!.*$",
+      "name": "comment.line.exclamation.lmm"
+    },
+    "block_property": {
+      "match": "^\\s*#[a-zA-Z0-9_-]+:.*$",
+      "name": "keyword.other.property.lmm"
+    },
+    "block_tag": {
+      "begin": "@([a-zA-Z0-9]+)\\s+\\{",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.tag.lmm"
+        }
+      },
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "enhanced_block": {
+      "begin": "(\\+{1,})\\{",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.block.lmm"
+        }
+      },
+      "end": "\\}(\\1)",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.block.lmm"
+        }
+      }
+    },
+    "inline_tag": {
+      "begin": "@([a-zA-Z0-9]+)(\\(.*?\\))?\\s+\\{",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.function.lmm"
+        },
+        "2": {
+          "name": "variable.parameter.lmm"
+        }
+      },
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "$self"
+        }
+      ]
+    },
+    "inline_code": {
+      "match": "`[^`]*`",
+      "name": "markup.inline.raw.lmm"
+    }
+  }
+}

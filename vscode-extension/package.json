@@ -1,0 +1,109 @@
+{
+  "name": "lumosmark-analyzer",
+  "displayName": "LumosMark Analyzer",
+  "description": "Support for LumosMark(.lmm) files with a language server",
+  "publisher": "copi143",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "lmm.startLanguageServer",
+        "title": "LumosMark: Start Language Server"
+      },
+      {
+        "command": "lmm.stopLanguageServer",
+        "title": "LumosMark: Stop Language Server"
+      },
+      {
+        "command": "lmm.restartLanguageServer",
+        "title": "LumosMark: Restart Language Server"
+      },
+      {
+        "command": "lmm.configureLanguageServerArgs",
+        "title": "LumosMark: Configure Language Server Arguments"
+      },
+      {
+        "command": "lmm.showLanguageServerInfo",
+        "title": "LumosMark: Show Language Server Info"
+      },
+      {
+        "command": "lmm.showLanguageServerOutput",
+        "title": "LumosMark: Show Language Server Output"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "LumosMark configuration",
+      "properties": {
+        "lmm.languageServerPath": {
+          "type": "string",
+          "default": "lumosmark-analyzer",
+          "description": "Path to the LumosMark language server (default: lumosmark-analyzer in PATH)"
+        },
+        "lmm.languageServerArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional command-line arguments to pass to the LumosMark language server."
+        },
+        "lmm.languageServerWorkingDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "Working directory to launch the LumosMark language server from. Leave empty to inherit the workspace root."
+        },
+        "lmm.languageServerEnv": {
+          "type": "object",
+          "default": {},
+          "description": "Additional environment variables for the LumosMark language server (key-value pairs).",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "lmm.languageServerAutoRestart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically restart the language server when relevant settings change."
+        },
+        "lmm.languageServerStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a status bar indicator for the LumosMark language server."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "lmm",
+        "aliases": [
+          "LumosMark",
+          "LUMOSMARK",
+          "lumosmark",
+          "lumos-mark"
+        ],
+        "extensions": [
+          ".lmm"
+        ],
+        "configuration": "./languages/lmm.language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "lmm",
+        "scopeName": "source.lmm",
+        "path": "./languages/lmm.tmLanguage.json"
+      }
+    ]
+  },
+  "main": "./extension.js",
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
