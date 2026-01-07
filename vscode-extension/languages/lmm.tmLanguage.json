@@ -1,84 +1,191 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "LumosMark",
+  "fileTypes": [
+    "lmm"
+  ],
   "scopeName": "source.lmm",
   "patterns": [
     {
-      "include": "#comment"
-    },
-    {
-      "include": "#block_property"
-    },
-    {
-      "include": "#block_tag"
-    },
-    {
-      "include": "#enhanced_block"
-    },
-    {
-      "include": "#inline_tag"
-    },
-    {
-      "include": "#inline_code"
+      "include": "#block_body"
     }
   ],
   "repository": {
-    "comment": {
-      "match": "^\\s*!.*$",
-      "name": "comment.line.exclamation.lmm"
-    },
-    "block_property": {
-      "match": "^\\s*#[a-zA-Z0-9_-]+:.*$",
-      "name": "keyword.other.property.lmm"
-    },
-    "block_tag": {
-      "begin": "@([a-zA-Z0-9]+)\\s+\\{",
-      "beginCaptures": {
-        "1": {
-          "name": "entity.name.tag.lmm"
-        }
-      },
-      "end": "\\}",
+    "block_body": {
       "patterns": [
         {
-          "include": "$self"
+          "include": "#comment"
+        },
+        {
+          "include": "#block_property"
+        },
+        {
+          "include": "#dollar_block"
+        },
+        {
+          "include": "#code_block"
+        },
+        {
+          "include": "#block_tag"
+        },
+        {
+          "include": "#inline_tag"
+        },
+        {
+          "include": "#inline_code"
+        },
+        {
+          "include": "#escape"
         }
       ]
     },
-    "enhanced_block": {
-      "begin": "(\\+{1,})\\{",
-      "beginCaptures": {
+    "comment": {
+      "match": "^\\s*!(?!!).*$",
+      "name": "comment.line.exclamation.lmm"
+    },
+    "block_property": {
+      "match": "^\\s*(#)([A-Za-z0-9_-]+)(\\s*:\\s*)(.*)$",
+      "name": "meta.property.lmm",
+      "captures": {
         "1": {
-          "name": "punctuation.definition.block.lmm"
-        }
-      },
-      "end": "\\}(\\1)",
-      "endCaptures": {
-        "1": {
-          "name": "punctuation.definition.block.lmm"
+          "name": "keyword.other.property.lmm"
+        },
+        "2": {
+          "name": "constant.other.property-name.lmm"
+        },
+        "3": {
+          "name": "keyword.operator.property.lmm"
+        },
+        "4": {
+          "name": "string.unquoted.property-value.lmm"
         }
       }
     },
+    "dollar_block": {
+      "begin": "^\\s*\\$\\s*$",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.block.lmm"
+        }
+      },
+      "end": "^\\s*\\$\\s*$",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.block.lmm"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#block_body"
+        }
+      ]
+    },
+    "code_block": {
+      "begin": "^\\s*(@)(code)\\s*(.*?)\\s*((\\+*)\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.tag.lmm"
+        },
+        "2": {
+          "name": "entity.name.tag.lmm"
+        },
+        "3": {
+          "name": "entity.name.function.lmm"
+        },
+        "4": {
+          "name": "entity.name.function.preprocessor.lmm"
+        }
+      },
+      "contentName": "comment.block.lmm",
+      "end": "((?<!\\})\\}\\5(?!\\}))",
+      "endCaptures": {
+        "1": {
+          "name": "entity.name.function.preprocessor.lmm"
+        }
+      }
+    },
+    "block_tag": {
+      "begin": "^\\s*(@)([A-Za-z0-9_-]+)\\s*(.*?)\\s*((\\+*)\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.tag.lmm"
+        },
+        "2": {
+          "name": "entity.name.tag.lmm"
+        },
+        "3": {
+          "name": "entity.name.function.lmm"
+        },
+        "4": {
+          "name": "entity.name.function.preprocessor.lmm"
+        }
+      },
+      "end": "((?<!\\})\\}\\5(?!\\}))",
+      "endCaptures": {
+        "1": {
+          "name": "entity.name.function.preprocessor.lmm"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#block_body"
+        }
+      ]
+    },
     "inline_tag": {
-      "begin": "@([a-zA-Z0-9]+)(\\(.*?\\))?\\s+\\{",
+      "begin": "@([A-Za-z0-9_-]+)(\\([^\\)]*\\))?\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "entity.name.function.lmm"
         },
         "2": {
           "name": "variable.parameter.lmm"
+        },
+        "3": {
+          "name": "punctuation.definition.block.lmm"
         }
       },
-      "end": "\\}",
+      "end": "(\\})",
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.block.lmm"
+        }
+      },
       "patterns": [
         {
-          "include": "$self"
+          "include": "#normal_block"
+        },
+        {
+          "include": "#enhanced_block"
+        },
+        {
+          "include": "#block_body"
         }
       ]
     },
     "inline_code": {
-      "match": "`[^`]*`",
-      "name": "markup.inline.raw.lmm"
+      "match": "(`)([^`]|[^`].*?[^`])(`)",
+      "name": "markup.inline.raw.string.markdown",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.raw.markdown"
+        },
+        "2": {
+          "name": "markup.inline.raw.string.lmm"
+        },
+        "3": {
+          "name": "punctuation.definition.raw.markdown"
+        }
+      }
+    },
+    "escape": {
+      "match": "([!@#${}`])\\1+",
+      "name": "markup.inline.raw.string.lmm",
+      "captures": {
+        "1": {
+          "name": "constant.character.escape.lmm"
+        }
+      }
     }
   }
 }

@@ -1,0 +1,12 @@
+[package]
+name = "lmm-rs"
+version = "0.0.1"
+edition = "2024"
+
+[lib]
+name = "lmm"
+path = "src/lib.rs"
+
+[dependencies]
+smol_str = "0.3.4"
+data-classes = "0.0.0-14"

@@ -91,7 +91,12 @@
         "extensions": [
           ".lmm"
         ],
-        "configuration": "./languages/lmm.language-configuration.json"
+        "firstLine": "^#!.*\\b(lmmview)(-[0-9.]+)?\\s*$",
+        "configuration": "./languages/lmm.language-configuration.json",
+        "icon": {
+          "light": "./resources/lmm-light.svg",
+          "dark": "./resources/lmm-dark.svg"
+        }
       }
     ],
     "grammars": [

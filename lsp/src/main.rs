@@ -1,14 +1,19 @@
-use regex::Regex;
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use lmm::{Node, Severity, Span, parse_document};
+use lsp::jsonrpc::Result;
+use lsp::lsp_types::*;
+use lsp::{Client, LanguageServer, LspService, Server};
+use std::collections::HashMap;
+use tokio::sync::RwLock;
+
+extern crate tower_lsp as lsp;
 
 #[derive(Debug)]
 struct Backend {
     client: Client,
+    documents: RwLock<HashMap<Url, String>>,
 }
 
-#[tower_lsp::async_trait]
+#[lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
@@ -21,6 +26,7 @@ impl LanguageServer for Backend {
                     trigger_characters: Some(vec!["@".to_string(), "#".to_string()]),
                     ..Default::default()
                 }),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -38,13 +44,18 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.on_change(params.text_document.uri, params.text_document.text)
-            .await;
+        let uri = params.text_document.uri;
+        let text = params.text_document.text;
+        self.store_document(uri.clone(), text.clone()).await;
+        self.on_change(uri, text).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         if let Some(change) = params.content_changes.into_iter().next() {
-            self.on_change(params.text_document.uri, change.text).await;
+            let uri = params.text_document.uri;
+            let text = change.text;
+            self.store_document(uri.clone(), text.clone()).await;
+            self.on_change(uri, text).await;
         }
     }
 
@@ -60,31 +71,47 @@ impl LanguageServer for Backend {
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         self.get_completions(params).await
     }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = params.text_document.uri;
+        let Some(text) = self.get_document(&uri).await else {
+            return Ok(None);
+        };
+        let result = parse_document(&text);
+        let symbols = collect_part_symbols(&result.document.nodes);
+        Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+    }
 }
 
 impl Backend {
+    async fn store_document(&self, uri: Url, text: String) {
+        let mut docs = self.documents.write().await;
+        docs.insert(uri, text);
+    }
+
+    async fn get_document(&self, uri: &Url) -> Option<String> {
+        let docs = self.documents.read().await;
+        docs.get(uri).cloned()
+    }
+
     async fn on_change(&self, uri: Url, text: String) {
         let mut diagnostics = Vec::new();
 
-        // 规则 1：标记名称与左大括号之间必须有一个空格
-        // 排除转义的 @@
-        let re_missing_space = Regex::new(r"(?P<at>@)(?P<name>[a-zA-Z0-9]+)\{").unwrap();
-        for cap in re_missing_space.captures_iter(&text) {
-            let m = cap.get(0).unwrap();
-            // 检查前面是否也是一个 @ (即 @@ 转义)
-            let start = m.start();
-            if start > 0 && &text[start - 1..start] == "@" {
-                continue;
-            }
-
-            let start_pos = self.offset_to_position(m.start(), &text);
-            let end_pos = self.offset_to_position(m.end(), &text);
-
+        let result = parse_document(&text);
+        for diag in result.diagnostics {
+            let start = Position::new(diag.span.start.line as u32, diag.span.start.col as u32);
+            let end = Position::new(diag.span.end.line as u32, diag.span.end.col as u32);
+            let severity = match diag.severity {
+                Severity::Error => DiagnosticSeverity::ERROR,
+                Severity::Warning => DiagnosticSeverity::WARNING,
+            };
             diagnostics.push(Diagnostic {
-                range: Range::new(start_pos, end_pos),
-                severity: Some(DiagnosticSeverity::WARNING),
-                message: "LMM 格式规范：标记名称与左大括号之间必须有一个空格。建议改为 '@name {'"
-                    .to_string(),
+                range: Range::new(start, end),
+                severity: Some(severity),
+                message: diag.message.to_string(),
                 source: Some("LumosMark".to_string()),
                 ..Default::default()
             });
@@ -101,10 +128,10 @@ impl Backend {
     ) -> Result<Option<CompletionResponse>> {
         let completions = vec![
             CompletionItem {
-                label: "section".to_string(),
+                label: "part".to_string(),
                 kind: Some(CompletionItemKind::KEYWORD),
                 detail: Some("定义章节".to_string()),
-                insert_text: Some("section { $1 }".to_string()),
+                insert_text: Some("part { $1 }".to_string()),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             },
@@ -135,23 +162,6 @@ impl Backend {
         ];
         Ok(Some(CompletionResponse::Array(completions)))
     }
-
-    fn offset_to_position(&self, offset: usize, text: &str) -> Position {
-        let mut line = 0;
-        let mut character = 0;
-        for (i, c) in text.char_indices() {
-            if i == offset {
-                break;
-            }
-            if c == '\n' {
-                line += 1;
-                character = 0;
-            } else {
-                character += 1;
-            }
-        }
-        Position::new(line, character)
-    }
 }
 
 #[tokio::main]
@@ -159,6 +169,50 @@ async fn main() {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(|client| Backend { client });
+    let (service, socket) = LspService::new(|client| Backend {
+        client,
+        documents: RwLock::new(HashMap::new()),
+    });
     Server::new(stdin, stdout, socket).serve(service).await;
+}
+
+fn collect_part_symbols(nodes: &[Node]) -> Vec<DocumentSymbol> {
+    let mut symbols = Vec::new();
+    for node in nodes {
+        if let Node::Block(block) = node {
+            let children = collect_part_symbols(&block.nodes);
+            if block.name == "part" {
+                let name = if block.args.is_empty() {
+                    "part".to_string()
+                } else {
+                    block
+                        .args
+                        .iter()
+                        .map(|arg| arg.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                };
+                #[allow(deprecated)]
+                symbols.push(DocumentSymbol {
+                    name,
+                    detail: None,
+                    kind: SymbolKind::NAMESPACE,
+                    tags: None,
+                    deprecated: None,
+                    range: span_to_range(block.span),
+                    selection_range: span_to_range(block.span),
+                    children: Some(children),
+                });
+            } else {
+                symbols.extend(children);
+            }
+        }
+    }
+    symbols
+}
+
+fn span_to_range(span: Span) -> Range {
+    let start = Position::new(span.start.line as u32, span.start.col as u32);
+    let end = Position::new(span.end.line as u32, span.end.col as u32);
+    Range::new(start, end)
 }
