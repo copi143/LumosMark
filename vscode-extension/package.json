@@ -4,6 +4,7 @@
   "description": "Support for LumosMark(.lmm), LumosMarkXml(.lmx), StyleSheetX(.ssx), LumosScript(.lms).",
   "publisher": "copi143",
   "version": "0.0.1",
+  "repository": "https://github.com/copi143/LumosMark",
   "engines": {
     "vscode": "^1.82.0"
   },

@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "scopeName": "source.lmx",
   "name": "LMX",
   "fileTypes": [
@@ -10,6 +11,12 @@
     },
     {
       "include": "#strings"
+    },
+    {
+      "include": "#style_block"
+    },
+    {
+      "include": "#script_block"
     },
     {
       "include": "#tokens"
@@ -44,6 +51,98 @@
         {
           "name": "string.unquoted.raw.lmx",
           "match": "#{3,}(#{0,2}[^#]+|\\n)+#*"
+        }
+      ]
+    },
+    "style_block": {
+      "begin": "\\b(style)(#[A-Za-z0-9_-]+)?\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.style.lmx"
+        },
+        "2": {
+          "name": "entity.other.attribute-name.id.lmx"
+        },
+        "3": {
+          "name": "punctuation.section.braces.begin.lmx"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.end.lmx"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#style_block"
+        },
+        {
+          "include": "#script_block"
+        },
+        {
+          "include": "#braced_content_ssx"
+        },
+        {
+          "include": "source.ssx"
+        }
+      ]
+    },
+    "script_block": {
+      "begin": "\\b(script)(#[A-Za-z0-9_-]+)?\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.script.lmx"
+        },
+        "2": {
+          "name": "entity.other.attribute-name.id.lmx"
+        },
+        "3": {
+          "name": "punctuation.section.braces.begin.lmx"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.end.lmx"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#style_block"
+        },
+        {
+          "include": "#script_block"
+        },
+        {
+          "include": "#braced_content_lms"
+        },
+        {
+          "include": "source.lms"
+        }
+      ]
+    },
+    "braced_content_ssx": {
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "#braced_content_ssx"
+        },
+        {
+          "include": "source.ssx"
+        }
+      ]
+    },
+    "braced_content_lms": {
+      "begin": "\\{",
+      "end": "\\}",
+      "patterns": [
+        {
+          "include": "#braced_content_lms"
+        },
+        {
+          "include": "source.lms"
         }
       ]
     },

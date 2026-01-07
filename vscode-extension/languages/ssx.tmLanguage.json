@@ -1,0 +1,162 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "StyleSheetX",
+  "fileTypes": [
+    "ssx"
+  ],
+  "scopeName": "source.ssx",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#at_rules"
+    },
+    {
+      "include": "#rules"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.ssx",
+          "match": "//[^\\n]*"
+        },
+        {
+          "name": "comment.block.ssx",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.ssx",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.double.ssx",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "at_rules": {
+      "patterns": [
+        {
+          "name": "keyword.control.at-rule.ssx",
+          "match": "@[A-Za-z_-][A-Za-z0-9_-]*\\b"
+        }
+      ]
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.ssx",
+          "match": "\\b[A-Za-z][A-Za-z0-9_-]*\\b"
+        },
+        {
+          "name": "entity.other.attribute-name.class.ssx",
+          "match": "\\.[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "entity.other.attribute-name.id.ssx",
+          "match": "#[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "keyword.operator.combinator.ssx",
+          "match": "[>+~]"
+        },
+        {
+          "name": "punctuation.separator.selector.ssx",
+          "match": ","
+        }
+      ]
+    },
+    "values": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "name": "constant.other.color.hex.ssx",
+          "match": "#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\\b"
+        },
+        {
+          "name": "constant.numeric.ssx",
+          "match": "(?:\\d+\\.\\d+|\\d+|\\.\\d+)(?:%|[A-Za-z]+)?\\b"
+        },
+        {
+          "name": "support.function.ssx",
+          "match": "\\b[A-Za-z_-][A-Za-z0-9_-]*(?=\\()"
+        },
+        {
+          "name": "variable.other.custom-property.ssx",
+          "match": "--[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "variable.other.ssx",
+          "match": "\\$[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "keyword.other.important.ssx",
+          "match": "!important\\b"
+        }
+      ]
+    },
+    "property": {
+      "begin": "^\\s*([A-Za-z_-][A-Za-z0-9_-]*)(\\s*:)\\s*",
+      "beginCaptures": {
+        "1": {
+          "name": "support.type.property-name.ssx"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.ssx"
+        }
+      },
+      "end": "(?=;|\\})",
+      "patterns": [
+        {
+          "include": "#values"
+        }
+      ]
+    },
+    "rules": {
+      "begin": "^\\s*(?=[^\\{]+\\{)",
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.end.ssx"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "^\\s*",
+          "end": "(?=\\{)",
+          "contentName": "meta.selector.ssx",
+          "patterns": [
+            {
+              "include": "#selectors"
+            }
+          ]
+        },
+        {
+          "name": "punctuation.section.braces.begin.ssx",
+          "match": "\\{"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#property"
+        }
+      ]
+    }
+  }
+}
