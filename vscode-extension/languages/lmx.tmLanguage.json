@@ -1,0 +1,114 @@
+{
+  "scopeName": "source.lmx",
+  "name": "LMX",
+  "fileTypes": [
+    "lmx"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#tokens"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.lmx",
+          "match": "//[^\\n]*"
+        },
+        {
+          "name": "comment.block.lmx",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.single.lmx",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.double.lmx",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.unquoted.raw.lmx",
+          "match": "#{3,}(#{0,2}[^#]+|\\n)+#*"
+        }
+      ]
+    },
+    "tokens": {
+      "patterns": [
+        {
+          "name": "keyword.control.style.lmx",
+          "match": "\\bstyle\\b"
+        },
+        {
+          "name": "keyword.control.script.lmx",
+          "match": "\\bscript\\b"
+        },
+        {
+          "name": "entity.name.namespace.lmx",
+          "match": "[A-Za-z0-9_\\-]+:"
+        },
+        {
+          "name": "meta.selector.css",
+          "begin": "(?=[A-Za-z0-9_\\-])",
+          "end": "(?=\\s)",
+          "patterns": [
+            {
+              "name": "entity.name.tag.css",
+              "match": "[A-Za-z0-9_\\-]+"
+            },
+            {
+              "name": "entity.other.attribute-name.class.css",
+              "match": "\\.[A-Za-z0-9_\\-]+"
+            },
+            {
+              "name": "entity.other.attribute-name.id.css",
+              "match": "#[A-Za-z0-9_\\-]+"
+            }
+          ]
+        },
+        {
+          "name": "punctuation.section.braces.begin.lmx",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.braces.end.lmx",
+          "match": "\\}"
+        },
+        {
+          "name": "keyword.operator.bang.lmx",
+          "match": "!"
+        },
+        {
+          "name": "keyword.operator.combinator.child.lmx",
+          "match": ">"
+        },
+        {
+          "name": "string.unquoted.line.lmx",
+          "match": "[|*+][^\\n]+"
+        },
+        {
+          "name": "entity.other.attribute-name.lmx",
+          "match": "&[A-Za-z0-9_\\-]+"
+        },
+        {
+          "name": "variable.other.inline-attr.lmx",
+          "match": "[A-Za-z0-9_\\-]+="
+        }
+      ]
+    }
+  }
+}

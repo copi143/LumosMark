@@ -6,8 +6,12 @@ use smol_str::SmolStr;
 pub struct Position {
     /// Line number (zero-based).
     pub line: usize,
-    /// Column number (zero-based).
-    pub col: usize,
+    /// Column number in UTF-8 bytes (zero-based).
+    pub col8: usize,
+    /// Column number in UTF-16 code units (zero-based).
+    pub col16: usize,
+    /// Column number in Unicode scalar values (zero-based).
+    pub col32: usize,
 }
 
 /// A half-open span in the source text.

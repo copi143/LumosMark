@@ -102,8 +102,8 @@ impl Backend {
 
         let result = parse_document(&text);
         for diag in result.diagnostics {
-            let start = Position::new(diag.span.start.line as u32, diag.span.start.col as u32);
-            let end = Position::new(diag.span.end.line as u32, diag.span.end.col as u32);
+            let start = Position::new(diag.span.start.line as u32, diag.span.start.col16 as u32);
+            let end = Position::new(diag.span.end.line as u32, diag.span.end.col16 as u32);
             let severity = match diag.severity {
                 Severity::Error => DiagnosticSeverity::ERROR,
                 Severity::Warning => DiagnosticSeverity::WARNING,
@@ -212,7 +212,7 @@ fn collect_part_symbols(nodes: &[Node]) -> Vec<DocumentSymbol> {
 }
 
 fn span_to_range(span: Span) -> Range {
-    let start = Position::new(span.start.line as u32, span.start.col as u32);
-    let end = Position::new(span.end.line as u32, span.end.col as u32);
+    let start = Position::new(span.start.line as u32, span.start.col16 as u32);
+    let end = Position::new(span.end.line as u32, span.end.col16 as u32);
     Range::new(start, end)
 }

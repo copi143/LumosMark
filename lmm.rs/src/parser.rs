@@ -33,20 +33,21 @@ pub fn parse_document_with_options(input: &str, options: ParseOptions) -> ParseR
 }
 
 struct Parser<'a> {
-    lines: Vec<&'a str>,
-    line_index: usize,
-    col: usize,
+    input: &'a str,
+    idx: usize,
+    line_start_idx: usize,
+    pos: Position,
     options: ParseOptions,
     diagnostics: Vec<Diagnostic>,
 }
 
 impl<'a> Parser<'a> {
     fn new(input: &'a str, options: ParseOptions) -> Self {
-        let lines = input.lines().collect::<Vec<_>>();
         Self {
-            lines,
-            line_index: 0,
-            col: 0,
+            input,
+            idx: 0,
+            line_start_idx: 0,
+            pos: Position::new(0, 0, 0, 0),
             options,
             diagnostics: Vec::new(),
         }
@@ -57,7 +58,7 @@ impl<'a> Parser<'a> {
         let nodes = self.parse_nodes_until(None);
         self.consume_trailing_comments();
         if !self.at_end() {
-            let span = self.span_for_line(self.line_index, self.col, self.col);
+            let span = span_at_line_start(self.pos.line);
             self.push_diag(span, Severity::Error, "unexpected trailing content");
         }
         Document { attrs, nodes }
@@ -70,28 +71,33 @@ impl<'a> Parser<'a> {
 
         while !self.at_end() {
             if let Some(close) = closing {
-                if let Some(pos) = self.find_close_in_line(close) {
-                    if pos == self.col {
+                if let Some(close_idx) = self.find_close_in_line(close) {
+                    if close_idx == self.idx {
                         self.flush_text(&mut nodes, &mut text_buf);
-                        self.col = pos + close.len();
+                        self.advance_to_idx(close_idx + close.len());
                         closed = true;
                         break;
                     }
-                    if let Some(line_buf) = self.parse_text_segment(self.col, pos) {
+                    let line = self.current_line_slice().unwrap_or("");
+                    let start_offset = self.current_line_offset();
+                    let end_offset = close_idx - self.line_start_idx;
+                    if let Some(line_buf) =
+                        self.parse_text_segment(line, self.pos.line, start_offset, end_offset)
+                    {
                         text_buf.push(line_buf);
                     }
                     self.flush_text(&mut nodes, &mut text_buf);
-                    self.col = pos + close.len();
+                    self.advance_to_idx(close_idx + close.len());
                     closed = true;
                     break;
                 }
             }
 
             if self.is_line_start() {
-                if let Some(line) = self.current_line() {
+                if let Some(line) = self.current_line_slice() {
                     if is_comment_line(line) {
                         if let Some(line_buf) =
-                            parse_comment_line(line, self.line_index, self.options)
+                            parse_comment_line(line, self.pos.line, self.options)
                         {
                             text_buf.push(line_buf);
                         }
@@ -136,9 +142,13 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            if let Some(line) = self.current_line() {
-                let end = line.len();
-                if let Some(line_buf) = self.parse_text_segment(self.col, end) {
+            if let Some(line) = self.current_line_slice() {
+                let line_end = self.line_end_idx();
+                let start_offset = self.current_line_offset();
+                let end_offset = line_end - self.line_start_idx;
+                if let Some(line_buf) =
+                    self.parse_text_segment(line, self.pos.line, start_offset, end_offset)
+                {
                     text_buf.push(line_buf);
                 }
                 self.advance_line();
@@ -147,15 +157,21 @@ impl<'a> Parser<'a> {
 
         self.flush_text(&mut nodes, &mut text_buf);
         if !closed {
-            let span = self.span_for_line(self.line_index.saturating_sub(1), 0, 0);
+            let line_index = self.pos.line.saturating_sub(1);
+            let span = span_at_line_start(line_index);
             self.push_diag(span, Severity::Error, "missing closing delimiter");
         }
         nodes
     }
 
-    fn parse_text_segment(&mut self, start: usize, end: usize) -> Option<LineBuf> {
-        let line = self.current_line()?;
-        parse_text_segment(line, self.line_index, start, end, self.options)
+    fn parse_text_segment(
+        &self,
+        line: &str,
+        line_index: usize,
+        start: usize,
+        end: usize,
+    ) -> Option<LineBuf> {
+        parse_text_segment(line, line_index, start, end, self.options)
     }
 
     fn flush_text(&mut self, nodes: &mut Vec<Node>, text_buf: &mut Vec<LineBuf>) {
@@ -181,7 +197,7 @@ impl<'a> Parser<'a> {
             if !self.is_line_start() {
                 break;
             }
-            let Some(line) = self.current_line() else {
+            let Some(line) = self.current_line_slice() else {
                 break;
             };
             if is_comment_line(line) {
@@ -207,17 +223,17 @@ impl<'a> Parser<'a> {
         }
         let without_hash = &trimmed[1..];
         let Some((key, value)) = without_hash.split_once(':') else {
-            let span = self.line_span_from_line(line);
+            let span = line_span_from_line(self.pos.line, line);
             self.push_diag(span, Severity::Error, "attribute missing ':'");
             return None;
         };
         let key = key.trim();
         if key.is_empty() {
-            let span = self.line_span_from_line(line);
+            let span = line_span_from_line(self.pos.line, line);
             self.push_diag(span, Severity::Error, "attribute key is empty");
             return None;
         }
-        let span = self.line_span_from_line(line);
+        let span = line_span_from_line(self.pos.line, line);
         Some(Attribute {
             key: key.into(),
             value: value.trim().into(),
@@ -226,24 +242,23 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_block_header(&mut self) -> Option<BlockHeader> {
-        let line = self.current_line()?;
+        let line = self.current_line_slice()?;
         let (at_col, header_start) = find_block_header_start(line)?;
-        let start_pos = Position::new(self.line_index, at_col);
-        let (header_raw, header_span, end_pos) = match self.collect_header(header_start) {
-            Some(value) => value,
-            None => {
-                let span = self.line_span_from_line(line);
-                self.push_diag(
-                    span,
-                    Severity::Error,
-                    "block header missing opening delimiter",
-                );
-                self.advance_line();
-                return None;
-            }
+        let start_pos = position_for_line_offset(self.pos.line, line, at_col);
+        let start_idx = self.line_start_idx + header_start;
+        let Some((header_raw, header_span, end_idx)) = self.scan_header(start_idx, start_pos)
+        else {
+            let span = line_span_from_line(self.pos.line, line);
+            self.push_diag(
+                span,
+                Severity::Error,
+                "block header missing opening delimiter",
+            );
+            self.advance_line();
+            return None;
         };
 
-        self.set_position(end_pos);
+        self.advance_to_idx(end_idx);
         self.advance_line_if_eol();
 
         let (name, args, params, plus_count, missing_space) = match parse_header_parts(&header_raw)
@@ -279,34 +294,30 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn collect_header(&mut self, start_col: usize) -> Option<(String, Span, Position)> {
+    fn scan_header(&self, start_idx: usize, start_pos: Position) -> Option<(String, Span, usize)> {
         let mut header = String::new();
-        let mut line_index = self.line_index;
-        let mut col = start_col;
-        loop {
-            let line = self.lines.get(line_index)?;
-            let bytes = line.as_bytes();
-            while col < bytes.len() {
-                let ch = bytes[col] as char;
-                if ch == '{' {
-                    return Some((
-                        header,
-                        Span::new(
-                            Position::new(self.line_index, start_col),
-                            Position::new(line_index, col + 1),
-                        ),
-                        Position::new(line_index, col + 1),
-                    ));
-                }
-                header.push(ch);
-                col += 1;
-            }
-            header.push(' ');
-            line_index += 1;
-            col = 0;
-            if line_index >= self.lines.len() {
+        let mut idx = start_idx;
+        let mut pos = start_pos;
+
+        while idx < self.input.len() {
+            let slice = &self.input[idx..];
+            let Some(ch) = slice.chars().next() else {
                 break;
+            };
+            if ch == '{' {
+                let end_pos = advance_position(pos, ch);
+                let end_idx = idx + ch.len_utf8();
+                return Some((header, Span::new(start_pos, end_pos), end_idx));
             }
+            if ch == '\n' {
+                header.push(' ');
+                pos = Position::new(pos.line + 1, 0, 0, 0);
+                idx += ch.len_utf8();
+                continue;
+            }
+            header.push(ch);
+            pos = advance_position(pos, ch);
+            idx += ch.len_utf8();
         }
         None
     }
@@ -314,22 +325,23 @@ impl<'a> Parser<'a> {
     fn collect_until_dollar(&mut self) -> Vec<(usize, &'a str)> {
         let mut out = Vec::new();
         while !self.at_end() {
-            let line = self.current_line().unwrap_or("");
+            let line = self.current_line_slice().unwrap_or("");
             if is_dollar_line(line) {
                 self.advance_line();
                 return out;
             }
-            out.push((self.line_index, line));
+            out.push((self.pos.line, line));
             self.advance_line();
         }
-        let span = self.span_for_line(self.line_index.saturating_sub(1), 0, 0);
+        let line_index = self.pos.line.saturating_sub(1);
+        let span = span_at_line_start(line_index);
         self.push_diag(span, Severity::Error, "unterminated $ block");
         out
     }
 
     fn consume_trailing_comments(&mut self) {
         while !self.at_end() {
-            let Some(line) = self.current_line() else {
+            let Some(line) = self.current_line_slice() else {
                 break;
             };
             if is_comment_line(line) || line.trim().is_empty() {
@@ -341,38 +353,106 @@ impl<'a> Parser<'a> {
     }
 
     fn find_close_in_line(&self, close: &str) -> Option<usize> {
-        let line = self.current_line()?;
-        line[self.col..].find(close).map(|idx| idx + self.col)
+        let line_end = self.line_end_idx();
+        if self.idx > line_end {
+            return None;
+        }
+        let line_tail = &self.input[self.idx..line_end];
+        line_tail.find(close).map(|idx| self.idx + idx)
     }
 
     fn is_line_start(&self) -> bool {
-        self.col == 0
+        self.idx == self.line_start_idx
     }
 
     fn at_end(&self) -> bool {
-        self.line_index >= self.lines.len()
+        self.idx >= self.input.len()
     }
 
-    fn current_line(&self) -> Option<&'a str> {
-        self.lines.get(self.line_index).copied()
+    fn current_line_slice(&self) -> Option<&'a str> {
+        if self.line_start_idx > self.input.len() {
+            return None;
+        }
+        let end = self.line_end_idx();
+        Some(&self.input[self.line_start_idx..end])
+    }
+
+    fn line_end_idx(&self) -> usize {
+        if self.line_start_idx >= self.input.len() {
+            return self.input.len();
+        }
+        let tail = &self.input[self.line_start_idx..];
+        match tail.find('\n') {
+            Some(offset) => self.line_start_idx + offset,
+            None => self.input.len(),
+        }
+    }
+
+    fn current_line_offset(&self) -> usize {
+        self.idx.saturating_sub(self.line_start_idx)
     }
 
     fn advance_line(&mut self) {
-        self.line_index += 1;
-        self.col = 0;
+        let line_end = self.line_end_idx();
+        if self.idx < line_end {
+            self.advance_to_idx(line_end);
+        }
+        if self.peek_char() == Some('\n') {
+            self.advance_char();
+        }
     }
 
     fn advance_line_if_eol(&mut self) {
-        if let Some(line) = self.current_line() {
-            if self.col >= line.len() {
-                self.advance_line();
+        let line_end = self.line_end_idx();
+        if self.idx >= line_end {
+            if self.peek_char() == Some('\n') {
+                self.advance_char();
             }
         }
     }
 
-    fn set_position(&mut self, pos: Position) {
-        self.line_index = pos.line;
-        self.col = pos.col;
+    fn peek_char(&self) -> Option<char> {
+        self.input[self.idx..].chars().next()
+    }
+
+    fn advance_char(&mut self) -> Option<char> {
+        let ch = self.peek_char()?;
+        let len = ch.len_utf8();
+        self.idx += len;
+        if ch == '\n' {
+            self.pos.line += 1;
+            self.pos.col8 = 0;
+            self.pos.col16 = 0;
+            self.pos.col32 = 0;
+            self.line_start_idx = self.idx;
+        } else {
+            self.pos.col8 += len;
+            self.pos.col16 += ch.len_utf16();
+            self.pos.col32 += 1;
+        }
+        Some(ch)
+    }
+
+    fn advance_to_idx(&mut self, target: usize) {
+        if target <= self.idx {
+            return;
+        }
+        let slice = &self.input[self.idx..target];
+        for ch in slice.chars() {
+            let len = ch.len_utf8();
+            self.idx += len;
+            if ch == '\n' {
+                self.pos.line += 1;
+                self.pos.col8 = 0;
+                self.pos.col16 = 0;
+                self.pos.col32 = 0;
+                self.line_start_idx = self.idx;
+            } else {
+                self.pos.col8 += len;
+                self.pos.col16 += ch.len_utf16();
+                self.pos.col32 += 1;
+            }
+        }
     }
 
     fn push_diag(&mut self, span: Span, severity: Severity, message: &str) {
@@ -381,18 +461,6 @@ impl<'a> Parser<'a> {
             severity,
             message: message.into(),
         });
-    }
-
-    fn span_for_line(&self, line_index: usize, start_col: usize, end_col: usize) -> Span {
-        Span::new(
-            Position::new(line_index, start_col),
-            Position::new(line_index, end_col),
-        )
-    }
-
-    fn line_span_from_line(&self, line: &str) -> Span {
-        let end_col = line.len();
-        self.span_for_line(self.line_index, 0, end_col)
     }
 }
 
@@ -456,10 +524,10 @@ fn parse_text_segment(
         for ch in segment.chars() {
             if ch == ' ' {
                 indent += options.space_width;
-                skip += 1;
+                skip += ch.len_utf8();
             } else if ch == '\t' {
                 indent += options.tab_width;
-                skip += 1;
+                skip += ch.len_utf8();
             } else {
                 break;
             }
@@ -476,10 +544,7 @@ fn parse_text_segment(
         return None;
     }
 
-    let span = Span::new(
-        Position::new(line_index, value_start),
-        Position::new(line_index, value_start + value.len()),
-    );
+    let span = span_for_line_offsets(line_index, line, value_start, value_start + value.len());
 
     Some(LineBuf {
         indent,
@@ -498,10 +563,10 @@ fn parse_comment_line(line: &str, line_index: usize, options: ParseOptions) -> O
     for ch in line.chars() {
         if ch == ' ' {
             indent += options.space_width;
-            skip += 1;
+            skip += ch.len_utf8();
         } else if ch == '\t' {
             indent += options.tab_width;
-            skip += 1;
+            skip += ch.len_utf8();
         } else {
             break;
         }
@@ -512,10 +577,7 @@ fn parse_comment_line(line: &str, line_index: usize, options: ParseOptions) -> O
     let leading = rest.len().saturating_sub(trimmed.len());
     let value_start = skip + 1 + leading;
     let value = trimmed.to_string();
-    let span = Span::new(
-        Position::new(line_index, value_start),
-        Position::new(line_index, value_start + value.len()),
-    );
+    let span = span_for_line_offsets(line_index, line, value_start, value_start + value.len());
     Some(LineBuf {
         indent,
         value,
@@ -686,4 +748,46 @@ fn skip_spaces(bytes: &[u8], mut index: usize) -> usize {
         index += 1;
     }
     index
+}
+
+fn span_at_line_start(line_index: usize) -> Span {
+    let pos = Position::new(line_index, 0, 0, 0);
+    Span::new(pos, pos)
+}
+
+fn line_span_from_line(line_index: usize, line: &str) -> Span {
+    let end = position_for_line_offset(line_index, line, line.len());
+    Span::new(Position::new(line_index, 0, 0, 0), end)
+}
+
+fn span_for_line_offsets(line_index: usize, line: &str, start: usize, end: usize) -> Span {
+    let start_pos = position_for_line_offset(line_index, line, start);
+    let end_pos = position_for_line_offset(line_index, line, end);
+    Span::new(start_pos, end_pos)
+}
+
+fn position_for_line_offset(line_index: usize, line: &str, byte_offset: usize) -> Position {
+    let mut col8 = 0usize;
+    let mut col16 = 0usize;
+    let mut col32 = 0usize;
+    let prefix = &line[..byte_offset];
+    for ch in prefix.chars() {
+        col8 += ch.len_utf8();
+        col16 += ch.len_utf16();
+        col32 += 1;
+    }
+    Position::new(line_index, col8, col16, col32)
+}
+
+fn advance_position(pos: Position, ch: char) -> Position {
+    if ch == '\n' {
+        Position::new(pos.line + 1, 0, 0, 0)
+    } else {
+        Position::new(
+            pos.line,
+            pos.col8 + ch.len_utf8(),
+            pos.col16 + ch.len_utf16(),
+            pos.col32 + 1,
+        )
+    }
 }

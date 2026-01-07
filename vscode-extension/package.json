@@ -1,7 +1,7 @@
 {
   "name": "lumosmark-analyzer",
   "displayName": "LumosMark Analyzer",
-  "description": "Support for LumosMark(.lmm) files with a language server",
+  "description": "Support for LumosMark(.lmm), LumosMarkXml(.lmx), StyleSheetX(.ssx), LumosScript(.lms).",
   "publisher": "copi143",
   "version": "0.0.1",
   "engines": {
@@ -89,13 +89,75 @@
           "lumos-mark"
         ],
         "extensions": [
-          ".lmm"
+          ".lmm",
+          ".lumosmark",
+          ".lumos-mark"
         ],
-        "firstLine": "^#!.*\\b(lmmview)(-[0-9.]+)?\\s*$",
+        "firstLine": "^#!.*\\b(lmmview)((-|\\.)[0-9.]+)?\\s*$",
         "configuration": "./languages/lmm.language-configuration.json",
         "icon": {
           "light": "./resources/lmm-light.svg",
           "dark": "./resources/lmm-dark.svg"
+        }
+      },
+      {
+        "id": "lmx",
+        "aliases": [
+          "LumosMarkXml",
+          "LUMOSMARKXML",
+          "lumosmarkxml",
+          "lumos-mark-xml"
+        ],
+        "extensions": [
+          ".lmx",
+          ".lumosmarkxml",
+          ".lumos-mark-xml"
+        ],
+        "firstLine": "^#!.*\\b(lmxview)((-|\\.)[0-9.]+)?\\s*$",
+        "configuration": "./languages/lmx.language-configuration.json",
+        "icon": {
+          "light": "./resources/lmx-light.svg",
+          "dark": "./resources/lmx-dark.svg"
+        }
+      },
+      {
+        "id": "ssx",
+        "aliases": [
+          "StyleSheetX",
+          "STYLESHEETX",
+          "stylesheetx",
+          "style-sheet-x"
+        ],
+        "extensions": [
+          ".ssx",
+          ".stylesheetx",
+          ".style-sheet-x"
+        ],
+        "firstLine": "^#!.*\\b(ssxedit)((-|\\.)[0-9.]+)?\\s*$",
+        "configuration": "./languages/ssx.language-configuration.json",
+        "icon": {
+          "light": "./resources/ssx-light.svg",
+          "dark": "./resources/ssx-dark.svg"
+        }
+      },
+      {
+        "id": "lms",
+        "aliases": [
+          "LumosScript",
+          "LUMOSSCRIPT",
+          "lumosscript",
+          "lumos-script"
+        ],
+        "extensions": [
+          ".lms",
+          ".lumosscript",
+          ".lumos-script"
+        ],
+        "firstLine": "^#!.*\\b(lmsedit)((-|\\.)[0-9.]+)?\\s*$",
+        "configuration": "./languages/lms.language-configuration.json",
+        "icon": {
+          "light": "./resources/lms-light.svg",
+          "dark": "./resources/lms-dark.svg"
         }
       }
     ],
@@ -104,6 +166,28 @@
         "language": "lmm",
         "scopeName": "source.lmm",
         "path": "./languages/lmm.tmLanguage.json"
+      },
+      {
+        "language": "lmx",
+        "scopeName": "source.lmx",
+        "path": "./languages/lmx.tmLanguage.json"
+      },
+      {
+        "language": "ssx",
+        "scopeName": "source.ssx",
+        "path": "./languages/ssx.tmLanguage.json"
+      },
+      {
+        "language": "lms",
+        "scopeName": "source.lms",
+        "path": "./languages/lms.tmLanguage.json"
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "rawString",
+        "superType": "string",
+        "description": "Raw string literals"
       }
     ]
   },
