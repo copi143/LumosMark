@@ -19,6 +19,9 @@
       "include": "#script_block"
     },
     {
+      "include": "#element_block"
+    },
+    {
       "include": "#tokens"
     }
   ],
@@ -55,7 +58,7 @@
       ]
     },
     "style_block": {
-      "begin": "\\b(style)(#[A-Za-z0-9_-]+)?\\s*(\\{)",
+      "begin": "(&?style)\\b\\s*(#[A-Za-z0-9_-]+)?\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.style.lmx"
@@ -75,12 +78,6 @@
       },
       "patterns": [
         {
-          "include": "#style_block"
-        },
-        {
-          "include": "#script_block"
-        },
-        {
           "include": "#braced_content_ssx"
         },
         {
@@ -89,7 +86,7 @@
       ]
     },
     "script_block": {
-      "begin": "\\b(script)(#[A-Za-z0-9_-]+)?\\s*(\\{)",
+      "begin": "\\b(script)\\b\\s*(#[A-Za-z0-9_-]+)?\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.script.lmx"
@@ -109,16 +106,60 @@
       },
       "patterns": [
         {
+          "include": "#braced_content_lms"
+        },
+        {
+          "include": "source.lms"
+        }
+      ]
+    },
+    "element_block": {
+      "begin": "^\\s*(?=[^\\{]+\\{)",
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.braces.end.lmx"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "^\\s*",
+          "end": "(?=\\{)",
+          "contentName": "meta.selector.lmx",
+          "patterns": [
+            {
+              "include": "#selectors"
+            }
+          ]
+        },
+        {
+          "name": "punctuation.section.braces.begin.lmx",
+          "match": "\\{"
+        },
+        {
+          "include": "#block_content"
+        }
+      ]
+    },
+    "block_content": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
           "include": "#style_block"
         },
         {
           "include": "#script_block"
         },
         {
-          "include": "#braced_content_lms"
+          "include": "#element_block"
         },
         {
-          "include": "source.lms"
+          "include": "#content_tokens"
         }
       ]
     },
@@ -150,7 +191,7 @@
       "patterns": [
         {
           "name": "keyword.control.style.lmx",
-          "match": "\\bstyle\\b"
+          "match": "(?:\\bstyle\\b|&style\\b)"
         },
         {
           "name": "keyword.control.script.lmx",
@@ -159,25 +200,6 @@
         {
           "name": "entity.name.namespace.lmx",
           "match": "[A-Za-z0-9_\\-]+:"
-        },
-        {
-          "name": "meta.selector.css",
-          "begin": "(?=[A-Za-z0-9_\\-])",
-          "end": "(?=\\s)",
-          "patterns": [
-            {
-              "name": "entity.name.tag.css",
-              "match": "[A-Za-z0-9_\\-]+"
-            },
-            {
-              "name": "entity.other.attribute-name.class.css",
-              "match": "\\.[A-Za-z0-9_\\-]+"
-            },
-            {
-              "name": "entity.other.attribute-name.id.css",
-              "match": "#[A-Za-z0-9_\\-]+"
-            }
-          ]
         },
         {
           "name": "punctuation.section.braces.begin.lmx",
@@ -206,6 +228,66 @@
         {
           "name": "variable.other.inline-attr.lmx",
           "match": "[A-Za-z0-9_\\-]+="
+        }
+      ]
+    },
+    "content_tokens": {
+      "patterns": [
+        {
+          "name": "entity.name.namespace.lmx",
+          "match": "[A-Za-z0-9_\\-]+:"
+        },
+        {
+          "name": "keyword.operator.bang.lmx",
+          "match": "!"
+        },
+        {
+          "name": "keyword.operator.combinator.child.lmx",
+          "match": ">"
+        },
+        {
+          "name": "string.unquoted.line.lmx",
+          "match": "[|*+][^\\n]+"
+        },
+        {
+          "name": "entity.other.attribute-name.lmx",
+          "match": "&[A-Za-z0-9_\\-]+"
+        },
+        {
+          "name": "variable.other.inline-attr.lmx",
+          "match": "[A-Za-z0-9_\\-]+="
+        }
+      ]
+    },
+    "selectors": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.lmx",
+          "match": "\\*|\\b[A-Za-z][A-Za-z0-9_-]*\\b"
+        },
+        {
+          "name": "entity.other.attribute-name.class.lmx",
+          "match": "\\.[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "entity.other.attribute-name.id.lmx",
+          "match": "#[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "entity.other.attribute-name.pseudo.lmx",
+          "match": ":{1,2}[A-Za-z0-9_-]+"
+        },
+        {
+          "name": "variable.parameter.attribute.lmx",
+          "match": "\\[[^\\]]+\\]"
+        },
+        {
+          "name": "keyword.operator.combinator.lmx",
+          "match": "[>+~]"
+        },
+        {
+          "name": "punctuation.separator.selector.lmx",
+          "match": ","
         }
       ]
     }

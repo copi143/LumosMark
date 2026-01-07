@@ -357,6 +357,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "lms-rs"
+version = "0.0.1"
+dependencies = [
+ "data-classes",
+ "smol_str",
+]
+
+[[package]]
+name = "lmx-rs"
+version = "0.0.1"
+dependencies = [
+ "data-classes",
+ "smol_str",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -653,6 +669,14 @@ checksum = "17129e116933cf371d018bb80ae557e889637989d8638274fb25622827b03881"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "ssx-rs"
+version = "0.0.1"
+dependencies = [
+ "data-classes",
+ "smol_str",
 ]
 
 [[package]]
